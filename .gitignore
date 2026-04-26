@@ -1,0 +1,5 @@
+ups_handler.sh
+ups_cancel.sh
+upsd.users
+upsmon.conf
+*.bak*

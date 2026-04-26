@@ -1,0 +1,8 @@
+[admin]
+    password = YOUR_NUT_PASSWORD
+    actions = SET
+    instcmds = ALL
+
+[upsmon]
+    password = YOUR_NUT_PASSWORD
+    upsmon primary
