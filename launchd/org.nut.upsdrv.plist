@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key><string>org.nut.upsdrv</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/local/Cellar/nut/2.8.5/bin/usbhid-ups</string>
+        <string>-u</string>
+        <string>root</string>
+        <string>-a</string>
+        <string>ups1</string>
+        <string>-F</string>
+    </array>
+    <key>RunAtLoad</key><true/>
+    <key>KeepAlive</key><true/>
+    <key>StandardErrorPath</key><string>/var/log/nut-driver.log</string>
+    <key>StandardOutPath</key><string>/var/log/nut-driver.log</string>
+</dict>
+</plist>
