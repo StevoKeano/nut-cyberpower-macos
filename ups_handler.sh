@@ -1,0 +1,95 @@
+#!/bin/bash
+
+# Telegram bot settings
+TELEGRAM_BOT_TOKEN="8684432474:AAGOBhw8RdiwAsxfJMPN2pJNaimyAXJ2rr8"
+TELEGRAM_CHAT_ID="8156582552"
+
+LOG_FILE="/var/log/ups_handler.log"
+ 
+telegram_send() {
+  local message=$1 retries=3 success=false
+  for ((i=1; i<=retries; i++)); do
+    response=$(curl -s -X POST \
+      "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" \
+      -d "chat_id=$TELEGRAM_CHAT_ID&text=$message")
+    if [[ $response == *"true"* ]]; then
+      echo "$(date): Sent: $message" >> "$LOG_FILE"
+      success=true; break
+    else
+      echo "$(date): Telegram retry $i: $message" >> "$LOG_FILE"
+      sleep 1
+    fi
+  done
+  [ "$success" = false ] && echo "$(date): Telegram failed: $message" >> "$LOG_FILE"
+}
+ 
+check_ssh() {
+  ssh -o ConnectTimeout=5 -o BatchMode=yes "$1" 'exit' 2>/dev/null
+}
+ 
+cancel_shutdown() {
+  rm -f /Users/Steve/.ups_shutdown_flag
+  if check_ssh steve@192.168.137.252; then
+    ssh -o ConnectTimeout=10 -o BatchMode=yes \
+      steve@192.168.137.252 'sudo shutdown -c' 2>/dev/null
+    telegram_send "Linux shutdown cancelled"
+  else
+    telegram_send "WARNING: Linux host unreachable for cancel"
+  fi
+  if check_ssh shit@192.168.1.101; then
+    ssh -o ConnectTimeout=10 -o BatchMode=yes \
+      shit@192.168.1.101 'shutdown /a' 2>/dev/null
+      telegram_send "Windows shutdown cancelled"
+  else
+    telegram_send "WARNING: Windows host unreachable for cancel"
+  fi
+  telegram_send "Power restored. All shutdowns cancelled."
+}
+ 
+shutdown_mac_delayed() {
+  touch /Users/Steve/.ups_shutdown_flag
+  (sleep 120 && [ -f /Users/Steve/.ups_shutdown_flag ] && sudo shutdown -h now) &
+}
+ 
+shutdown_linux() {
+  if check_ssh steve@192.168.137.252; then
+    ssh -o ConnectTimeout=10 -o BatchMode=yes \
+      steve@192.168.137.252 'sudo shutdown -h +2' 2>/dev/null 
+      telegram_send "Linux shutdown initiated"
+  else
+    telegram_send "WARNING: Linux host unreachable for shutdown"
+  fi
+}
+ 
+shutdown_windows() {
+  if check_ssh shit@192.168.1.101; then
+     ssh -o ConnectTimeout=10 -o BatchMode=yes \
+     shit@192.168.1.101 'shutdown /s /t 120' 2>/dev/null
+     telegram_send "Windows shutdown initiated"  
+  else
+    telegram_send "WARNING: Windows host unreachable for shutdown"
+  fi
+}
+ 
+case "$1" in
+  *"on battery"*)
+    telegram_send "UPS on battery. Shutdown in 2 minutes."
+    shutdown_linux
+    shutdown_windows
+    shutdown_mac_delayed
+    ;;
+  *"low battery"*)
+    telegram_send "UPS CRITICAL low battery. Shutting down NOW."
+    shutdown_linux
+    shutdown_windows
+    sudo shutdown -h now
+    ;;
+  *"on line"*)
+    telegram_send "Power restored. Cancelling shutdown."
+    cancel_shutdown
+    ;;
+  *)
+    telegram_send "Unknown UPS event: $1"
+    ;;
+esac
+
